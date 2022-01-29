@@ -4,7 +4,8 @@ import typing
 
 from pgquery.builder.actor import BuildingPayload
 from pgquery.builder.impl.column import BaseColumn, ColumnData
-from pgquery.builder.lexeme import BaseLexeme, TokensGenerator
+from pgquery.builder.impl.tokens import PGToken
+from pgquery.builder.lexeme import BaseLexeme
 
 # Pattern for converting CamelCase to snake_case
 _camel2snake_convert_pattern = pattern = re.compile(r"(?<!^)(?=[A-Z])")
@@ -23,27 +24,36 @@ class Table(BaseLexeme):
 
     def __init_subclass__(
         cls,
-        name: typing.Optional[str] = None,
+        title: typing.Optional[str] = None,
         if_not_exist: bool = True,
         **kwargs
     ):
         cls.__table_preferences__ = TablePreferences(
-            name=cls._build_table_name(name), if_not_exist=if_not_exist
+            name=cls._build_table_name(title), if_not_exist=if_not_exist
         )
         cls.__table_columns__ = tuple(cls._parse_columns())
         return super().__init_subclass__(**kwargs)
 
     @classmethod
-    def render(cls, payload: BuildingPayload) -> TokensGenerator:
-        yield "CREATE TABLE"
+    def render(cls, payload: BuildingPayload) -> None:
+        payload.buffer << PGToken.CREATE_TABLE
         if cls.__table_preferences__.if_not_exist:
-            yield payload.separator.stable_whitespace
-            yield "IF NOT EXISTS"
+            payload.buffer << PGToken.WHITESPACE
+            payload.buffer << PGToken.IF_NOT_EXIST
 
-        yield payload.separator.stable_whitespace
-        yield cls.__table_preferences__.name
-        yield "("
-        yield payload.separator.no_space_or_new_tab
+        # Render table name
+        payload.buffer << PGToken.WHITESPACE
+        payload.buffer << cls.__table_preferences__.name
+        payload.buffer << PGToken.LEFT_PARENTHESIS
+
+        columns_count = len(cls.__table_columns__)
+        for ind, column in enumerate(cls.__table_columns__):
+            column.render(payload)
+            # != Last column
+            if columns_count - 1 != ind:
+                payload.buffer << PGToken.COMMA
+
+        payload.buffer << PGToken.RIGHT_PARENTHESIS
 
     @classmethod
     def _parse_columns(cls) -> typing.Generator[ColumnData, None, None]:
@@ -56,4 +66,6 @@ class Table(BaseLexeme):
 
     @classmethod
     def _build_table_name(cls, name: typing.Optional[str]) -> str:
-        return _camel2snake_convert_pattern.sub("_", cls.__name__).lower()
+        return _camel2snake_convert_pattern.sub(
+            "_", name or cls.__name__
+        ).lower()

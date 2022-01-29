@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-import ctypes
 import dataclasses
 import functools
 import typing
 
-from pgquery.builder.separator import TokensSeparator
+from pgquery.builder.buffer import BaseSQLBuffer, JoinSQlBuffer
 
 if typing.TYPE_CHECKING:
     from pgquery.builder.lexeme import BaseLexeme
@@ -15,13 +14,10 @@ if typing.TYPE_CHECKING:
 class BuildingPayload:
     actor: BuildingActor
     indentation_level: int = 0
-    sql_buffer: ctypes.Array[ctypes.c_char] = dataclasses.field(
-        default_factory=ctypes.create_string_buffer
-    )
 
     @functools.cached_property
-    def separator(self) -> TokensSeparator:
-        return TokensSeparator(payload=self)
+    def buffer(self) -> BaseSQLBuffer:
+        return self.actor.sql_buffer
 
 
 @dataclasses.dataclass
@@ -30,18 +26,22 @@ class QueryBuildingResult:
 
     @functools.cached_property
     def sql(self) -> str:
-        return repr(self.payload.sql_buffer)
+        return self.payload.buffer.collect()
 
 
 @dataclasses.dataclass
 class BuildingActor:
-    query: BaseLexeme
-    debug: bool
-    colorize: bool  # TODO
+    debug: bool = False
+    colorize: bool = False  # TODO
     indent_spaces: int = 4
+    sql_buffer: BaseSQLBuffer = dataclasses.field(
+        default_factory=JoinSQlBuffer
+    )
 
-    def build(self) -> QueryBuildingResult:
+    def build(
+        self, query: typing.Union[BaseLexeme, typing.Type[BaseLexeme]]
+    ) -> QueryBuildingResult:
         payload = BuildingPayload(actor=self)
-        self.query.render(payload)
+        query.render(payload)
         result = QueryBuildingResult(payload=payload)
         return result

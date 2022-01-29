@@ -1,18 +1,17 @@
 from __future__ import annotations
 
 import abc
+import dataclasses
 import typing
 
 if typing.TYPE_CHECKING:
     from pgquery.builder.actor import BuildingPayload
 
 
-TokensGenerator = typing.Generator[str, None, None]
-
-
+@dataclasses.dataclass
 class BaseLexeme(abc.ABC):
     @abc.abstractmethod
-    def render(self, payload: BuildingPayload) -> TokensGenerator:
+    def render(self, payload: BuildingPayload) -> None:
         pass
 
 
