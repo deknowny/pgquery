@@ -1,8 +1,8 @@
 import dataclasses
 import typing
 
-from genorm.builder.actor import BuildingPayload
-from genorm.builder.lexeme import BaseLexeme, TokensGenerator, double_quoted
+from pgquery.builder.actor import BuildingPayload
+from pgquery.builder.lexeme import BaseLexeme, TokensGenerator, double_quoted
 
 ColumnPyType = typing.TypeVar("ColumnPyType")
 

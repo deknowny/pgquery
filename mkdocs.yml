@@ -5,7 +5,7 @@ site_name: GenORM
 site_description: Python PostgreSQL ORM
 
 # URL for pages editing
-repo_url: https://github.com/deknowny/genorm/tree/main
+repo_url: https://github.com/deknowny/pgquery/tree/main
 
 # Branch chosen when routing to repository
 remote_branch: main

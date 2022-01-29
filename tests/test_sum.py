@@ -1,4 +1,4 @@
-from genorm.mysum import mysum
+from pgquery.mysum import mysum
 
 
 def test_sum():

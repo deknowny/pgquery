@@ -5,10 +5,10 @@ import dataclasses
 import functools
 import typing
 
-from genorm.builder.separator import TokensSeparator
+from pgquery.builder.separator import TokensSeparator
 
 if typing.TYPE_CHECKING:
-    from genorm.builder.lexeme import BaseLexeme
+    from pgquery.builder.lexeme import BaseLexeme
 
 
 @dataclasses.dataclass

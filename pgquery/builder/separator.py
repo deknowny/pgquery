@@ -1,7 +1,7 @@
 import dataclasses
 import functools
 
-from genorm.builder.actor import BuildingPayload
+from pgquery.builder.actor import BuildingPayload
 
 
 @dataclasses.dataclass

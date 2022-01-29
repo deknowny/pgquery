@@ -1,26 +1,26 @@
 import typing
 
-import genorm
+import pgquery
 
 
-class Some(genorm.Table, name="some"):
-    id = genorm.Serial(pk=True)
-    field = genorm.Text()
+class Some(pgquery.Table, name="some"):
+    id = pgquery.Serial(pk=True)
+    field = pgquery.Text()
 
 
-class Book(genorm.Table, name="book"):
-    id = genorm.Serial(pk=True)
-    title = genorm.Varchar(100)
-    text = genorm.Text()
-    released_at = genorm.DateTime()
-    author_id = genorm.Integer(references="author.id")
-    some_id = genorm.Integer(references="some.id")
+class Book(pgquery.Table, name="book"):
+    id = pgquery.Serial(pk=True)
+    title = pgquery.Varchar(100)
+    text = pgquery.Text()
+    released_at = pgquery.DateTime()
+    author_id = pgquery.Integer(references="author.id")
+    some_id = pgquery.Integer(references="some.id")
 
 
-class Author(genorm.Table, name="author"):
-    id = genorm.Serial(pk=True)
-    full_name = genorm.Varchar(100)
-    bio = genorm.Text()
+class Author(pgquery.Table, name="author"):
+    id = pgquery.Serial(pk=True)
+    full_name = pgquery.Varchar(100)
+    bio = pgquery.Text()
 
 
 # SELECT book.id, book.name FROM book
@@ -91,7 +91,7 @@ query6 = Author.update(
 )
 
 
-queries = genorm.QueryRegister()
+queries = pgquery.QueryRegister()
 
 T = typing.TypeVar("T")
 
@@ -104,28 +104,28 @@ arg = foo({"a": "1", "b": 1})
 
 
 @queries.add
-def get_book_by_id(id: genorm.IntegerType):
+def get_book_by_id(id: pgquery.IntegerType):
     entity = Book.join(Author)
-    return genorm.entity(
+    return pgquery.entity(
         b := Book,
         b.join(a := Author),
 
     )
-    # return genorm.Select[b := Book](
+    # return pgquery.Select[b := Book](
     #     id=b.id,
     #     released_at=b.released_at,
     #     author=b.join(a := Author, on=b.author_id == a.id)(
     #         id=a.id, bio=a.bio
     #     )
     # )
-    # return genorm.select[b := Book]({
+    # return pgquery.select[b := Book]({
     #     "id": b.id,
     #     "released_at": b.released_at,
-    #     "author": genorm.select[a := Author] {
+    #     "author": pgquery.select[a := Author] {
     #
     #     }
     # })
-    # return genorm\
+    # return pgquery\
     #     .select(Book.id, Book.released_at)\
     #     .from_(Book)\
     #     .where(Book.id == id)
@@ -142,5 +142,5 @@ class GetBookByIdResponse(pydantic.BaseModel):
     released_at: datetime.datetime
 
 
-def get_book_by_id(driver: genorm.Driver, id: genorm.IntegerType) -> GetBookByIdResponse:
+def get_book_by_id(driver: pgquery.Driver, id: pgquery.IntegerType) -> GetBookByIdResponse:
     return driver.execute('SELECT "book"."id","book"."name" FROM "book" where "book"."id" = ?', id)

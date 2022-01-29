@@ -2,9 +2,9 @@ import dataclasses
 import re
 import typing
 
-from genorm.builder.actor import BuildingPayload
-from genorm.builder.impl.column import BaseColumn, ColumnData
-from genorm.builder.lexeme import BaseLexeme, TokensGenerator
+from pgquery.builder.actor import BuildingPayload
+from pgquery.builder.impl.column import BaseColumn, ColumnData
+from pgquery.builder.lexeme import BaseLexeme, TokensGenerator
 
 # Pattern for converting CamelCase to snake_case
 _camel2snake_convert_pattern = pattern = re.compile(r"(?<!^)(?=[A-Z])")

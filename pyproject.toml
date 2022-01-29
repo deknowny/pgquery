@@ -3,13 +3,13 @@ requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
-name = "genorm"
+name = "pgquery"
 version = "0.1.0a0"
 description = "Python PostgreSQL ORM"
 authors = ["Yan Kurbatov <deknowny@gmail.com>"]
 license = "MIT"
-homepage = "https://github.com/deknowny/genorm"
-documentation = "https://deknowny.github.io/genorm/latest/"
+homepage = "https://github.com/deknowny/pgquery"
+documentation = "https://deknowny.github.io/pgquery/latest/"
 readme = "README.md"
 keywords = []  # Search keywords (max 5)
 classifiers = []  # PyPI classifiers
@@ -63,5 +63,5 @@ line-length = 78
 
 [tool.isort]
 profile = "wemake"
-src_paths = ["genorm", "tests"]
+src_paths = ["pgquery", "tests"]
 line_length = 78

@@ -4,7 +4,7 @@ import abc
 import typing
 
 if typing.TYPE_CHECKING:
-    from genorm.builder.actor import BuildingPayload
+    from pgquery.builder.actor import BuildingPayload
 
 
 TokensGenerator = typing.Generator[str, None, None]

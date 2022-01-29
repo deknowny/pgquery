@@ -1,1 +1,1 @@
-Check out [site Contributing section](https://deknowny.github.io/genorm/latest/contributing/)
+Check out [site Contributing section](https://deknowny.github.io/pgquery/latest/contributing/)

@@ -34,24 +34,24 @@ install-dev-test: setup
 
 # Reformat code style
 format:
-	$(poetry_exec) run black genorm && \
+	$(poetry_exec) run black pgquery && \
 	git add -u && \
-	$(poetry_exec) run isort genorm && \
+	$(poetry_exec) run isort pgquery && \
 	git add -u && \
 	$(poetry_exec) run autoflake \
 		--ignore-init-module-imports \
 		--remove-unused-variables \
 		--recursive \
-		--in-place genorm tests && \
+		--in-place pgquery tests && \
 	git add -u
 
 # Run tests locally
 test:
-	$(poetry_exec) run pytest tests --cov=genorm --cov-report=html
+	$(poetry_exec) run pytest tests --cov=pgquery --cov-report=html
 
 # Tests command for CI with .coveragerc report
 test-ci:
-	$(poetry_exec) run coverage run --source=genorm -m pytest tests
+	$(poetry_exec) run coverage run --source=pgquery -m pytest tests
 
 # Serve coverage report
 serve-cov:
