@@ -67,6 +67,9 @@ class _NestedField(Renderable):
                 lateral = LateralSubSelect(select=v, alias=f"r{ind}")
                 selects.append((k, lateral))
                 del self.unwrapped_mapping[ind]
+                self.unwrapped_mapping.append((k, Raw(lateral.alias + ".r")))
+            elif isinstance(v, _NestedField):
+                selects.extend(v.pop_selects())
 
         return selects
 
@@ -96,12 +99,8 @@ class Select(Renderable, WhereMixin, _SelectInit):
         current_fields = _NestedField.from_mapping(self.schema)
 
         selects = current_fields.pop_selects()
-
         for sub_select_field, sub_select_result in selects:
             self.tables.append(sub_select_result)
-            current_fields.unwrapped_mapping.append(
-                (sub_select_field, Raw(sub_select_result.alias + ".r"))
-            )
 
         nest_with_alias = Alias(current_fields, "r")
         nest_with_alias.render(payload)
