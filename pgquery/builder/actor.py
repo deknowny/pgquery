@@ -7,17 +7,14 @@ import typing
 from pgquery.builder.buffer import BaseSQLBuffer, JoinSQlBuffer
 
 if typing.TYPE_CHECKING:
-    from pgquery.builder.lexeme import BaseLexeme
+    from pgquery.builder.clause import Renderable
 
 
 @dataclasses.dataclass
 class BuildingPayload:
     actor: BuildingActor
+    buffer: BaseSQLBuffer
     indentation_level: int = 0
-
-    @functools.cached_property
-    def buffer(self) -> BaseSQLBuffer:
-        return self.actor.sql_buffer
 
 
 @dataclasses.dataclass
@@ -34,14 +31,13 @@ class BuildingActor:
     debug: bool = False
     colorize: bool = False  # TODO
     indent_spaces: int = 4
-    sql_buffer: BaseSQLBuffer = dataclasses.field(
-        default_factory=JoinSQlBuffer
+    sql_buffer_class: typing.Type[BaseSQLBuffer] = dataclasses.field(
+        default=JoinSQlBuffer
     )
 
-    def build(
-        self, query: typing.Union[BaseLexeme, typing.Type[BaseLexeme]]
-    ) -> QueryBuildingResult:
-        payload = BuildingPayload(actor=self)
+    def build(self, query: Renderable) -> QueryBuildingResult:
+        buffer = self.sql_buffer_class()
+        payload = BuildingPayload(actor=self, buffer=buffer)
         query.render(payload)
-        result = QueryBuildingResult(payload=payload)
-        return result
+        payload.buffer << ";"
+        return QueryBuildingResult(payload=payload)

@@ -8,11 +8,18 @@ if typing.TYPE_CHECKING:
     from pgquery.builder.actor import BuildingPayload
 
 
+PyType = typing.TypeVar("PyType")
+
+
 @dataclasses.dataclass
-class BaseLexeme(abc.ABC):
+class Renderable(abc.ABC):
     @abc.abstractmethod
     def render(self, payload: BuildingPayload) -> None:
         pass
+
+
+class PyTypeReference(typing.Generic[PyType]):
+    pass
 
 
 def double_quoted(name: str):

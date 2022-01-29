@@ -1,59 +1,113 @@
+from __future__ import annotations
+
 import abc
 import dataclasses
 import typing
 
 from pgquery.builder.actor import BuildingPayload
+from pgquery.builder.clause import (
+    PyType,
+    PyTypeReference,
+    Renderable,
+    double_quoted,
+)
+from pgquery.builder.impl.literal import StaticLiteral
+from pgquery.builder.impl.op import BinaryOp, EqOpMixin
 from pgquery.builder.impl.tokens import PGToken
-from pgquery.builder.lexeme import BaseLexeme, double_quoted
 
-ColumnPyType = typing.TypeVar("ColumnPyType")
+if typing.TYPE_CHECKING:
+    from pgquery.builder.impl.table import Table
 
 
-@dataclasses.dataclass
-class BaseColumn(BaseLexeme, typing.Generic[ColumnPyType], abc.ABC):
+@dataclasses.dataclass(eq=False)
+class BaseColumn(Renderable, PyTypeReference[PyType], EqOpMixin, abc.ABC):
     pk: bool = False
     unique: bool = False
     nullable: bool = False
+    default: typing.Optional[StaticLiteral] = None  # TODO: DynamicLiteral
     references: typing.Optional[str] = None
+
+    # Set later from Table
+    column_data: typing.Optional[ColumnData] = None
+
+    def render(self, payload: BuildingPayload) -> None:
+        payload.buffer << double_quoted(
+            self.column_data.table.__table_preferences__.name
+        )
+        payload.buffer << PGToken.DOT
+        payload.buffer << double_quoted(self.column_data.name)
+
+    @abc.abstractmethod
+    def render_column_type(self, payload: BuildingPayload):
+        pass
+
+    def __eq__(self: Renderable, other: Renderable) -> BinaryOp:
+        return EqOpMixin.__eq__(self, other)
 
 
 @dataclasses.dataclass
-class ColumnData(BaseLexeme):
+class ColumnData:
     name: str
     schema: BaseColumn
+    table: typing.Type[Table]
 
-    def render(self, payload: BuildingPayload) -> None:
+    def render_for_table_creation(self, payload: BuildingPayload) -> None:
         payload.buffer << double_quoted(self.name)
         payload.buffer << PGToken.WHITESPACE
         # Render column type
-        self.schema.render(payload)
-        # TODO: cascade, defaults, not null
+        self.schema.render_column_type(payload)
+
+        # Default
+        if self.schema.default is not None:
+            payload.buffer << PGToken.WHITESPACE
+            payload.buffer << PGToken.DEFAULT
+            payload.buffer << PGToken.WHITESPACE
+            self.schema.default.render(payload)
+
+        # Primary key
+        if self.schema.pk:
+            payload.buffer << PGToken.WHITESPACE
+            payload.buffer << PGToken.PRIMARY_KEY
+
+        # References
+        if self.schema.references:
+            table, column = self.schema.references.split(".")
+            payload.buffer << PGToken.WHITESPACE
+            payload.buffer << PGToken.REFERENCES
+            payload.buffer << PGToken.WHITESPACE,
+            payload.buffer << double_quoted(table),
+            payload.buffer << PGToken.WHITESPACE,
+            payload.buffer << PGToken.LEFT_PARENTHESIS,
+            payload.buffer << double_quoted(column)
+            payload.buffer << PGToken.RIGHT_PARENTHESIS
+
+        # TODO: cascade, not null
 
 
-@dataclasses.dataclass
+@dataclasses.dataclass(eq=False)
 class Integer(BaseColumn[int]):
-    def render(self, payload: BuildingPayload) -> None:
+    def render_column_type(self, payload: BuildingPayload) -> None:
         payload.buffer << "INTEGER"
 
 
-@dataclasses.dataclass
+@dataclasses.dataclass(eq=False)
 class Serial(BaseColumn[int]):
-    def render(self, payload: BuildingPayload) -> None:
+    def render_column_type(self, payload: BuildingPayload) -> None:
         payload.buffer << "SERIAL"
 
 
-@dataclasses.dataclass
+@dataclasses.dataclass(eq=False)
 class Text(BaseColumn[str]):
-    def render(self, payload: BuildingPayload) -> None:
+    def render_column_type(self, payload: BuildingPayload) -> None:
         payload.buffer << "TEXT"
 
 
-@dataclasses.dataclass
+@dataclasses.dataclass(eq=False)
 class _VarcharMixin:
     limit: int
 
 
-@dataclasses.dataclass
+@dataclasses.dataclass(eq=False)
 class Varchar(BaseColumn[str], _VarcharMixin):
-    def render(self, payload: BuildingPayload) -> None:
+    def render_column_type(self, payload: BuildingPayload) -> None:
         payload.buffer << f"VARCHAR ({self.limit})"
