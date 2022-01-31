@@ -3,7 +3,7 @@
 # import functools
 # import typing
 #
-# from pgquery.builder.actor import BuildingPayload
+# from pgquery_old.builder.actor import BuildingPayload
 #
 #
 # @dataclasses.dataclass

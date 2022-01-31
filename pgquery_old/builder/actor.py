@@ -5,7 +5,6 @@ import functools
 import typing
 
 from pgquery.builder.buffer import BaseSQLBuffer, JoinSQlBuffer
-from pgquery.builder.mixins.statement import SupportsStatement
 
 if typing.TYPE_CHECKING:
     from pgquery.builder.clause import Renderable
@@ -36,7 +35,7 @@ class BuildingActor:
         default=JoinSQlBuffer
     )
 
-    def build(self, query: SupportsStatement) -> QueryBuildingResult:
+    def build(self, query: Renderable) -> QueryBuildingResult:
         buffer = self.sql_buffer_class()
         payload = BuildingPayload(actor=self, buffer=buffer)
         query.render(payload)
