@@ -39,8 +39,25 @@ class Table(SupportsCreation):
         return super().__init_subclass__(**kwargs)
 
     @classmethod
-    def render_for_creation(self, payload: BuildingPayload) -> None:
-        return CreateTable(table=cls)
+    def render_for_creation(cls, payload: BuildingPayload) -> None:
+        payload.buffer << PGToken.CREATE_TABLE
+        if cls.__table_preferences__.if_not_exist:
+            payload.buffer << PGToken.WHITESPACE
+            payload.buffer << PGToken.IF_NOT_EXIST
+
+        # Render table name
+        payload.buffer << PGToken.WHITESPACE
+        payload.buffer << cls.__table_preferences__.name
+        payload.buffer << PGToken.LEFT_PARENTHESIS
+
+        columns_count = len(cls.__table_columns__)
+        for ind, column in enumerate(cls.__table_columns__):
+            column.render_for_table_creation(payload)
+            # != Last column
+            if columns_count - 1 != ind:
+                payload.buffer << PGToken.COMMA
+
+        payload.buffer << PGToken.RIGHT_PARENTHESIS
 
     @classmethod
     def _parse_columns(cls) -> typing.Generator[ColumnData, None, None]:
@@ -57,29 +74,3 @@ class Table(SupportsCreation):
         return _camel2snake_convert_pattern.sub(
             "_", name or cls.__name__
         ).lower()
-
-
-@dataclasses.dataclass
-class CreateTable(Renderable):
-
-    table: typing.Type[Table]
-
-    def render(self, payload: BuildingPayload) -> None:
-        payload.buffer << PGToken.CREATE_TABLE
-        if self.table.__table_preferences__.if_not_exist:
-            payload.buffer << PGToken.WHITESPACE
-            payload.buffer << PGToken.IF_NOT_EXIST
-
-        # Render table name
-        payload.buffer << PGToken.WHITESPACE
-        payload.buffer << self.table.__table_preferences__.name
-        payload.buffer << PGToken.LEFT_PARENTHESIS
-
-        columns_count = len(self.table.__table_columns__)
-        for ind, column in enumerate(self.table.__table_columns__):
-            column.render_for_table_creation(payload)
-            # != Last column
-            if columns_count - 1 != ind:
-                payload.buffer << PGToken.COMMA
-
-        payload.buffer << PGToken.RIGHT_PARENTHESIS
