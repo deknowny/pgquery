@@ -5,12 +5,18 @@ import re
 import typing
 
 from pgquery.builder.actor import BuildingPayload
-from pgquery.builder.clause import Renderable
-from pgquery.builder.impl.column import BaseColumn, ColumnData
-from pgquery.builder.impl.tokens import PGToken
+from pgquery.builder.clauses.column import BaseColumn, ColumnData
+from pgquery.builder.clauses.creation import Create
+from pgquery.builder.clauses.identifier import Identifier
+from pgquery.builder.clauses.select import Select, SupportBeInSelectFrom
 from pgquery.builder.mixins.creation import SupportsCreation
+from pgquery.builder.mixins.expression import SupportsBeExpression
+from pgquery.builder.mixins.identifier import SupportsRenderAsIdentifier
+from pgquery.builder.tokens import PGToken
 
 # Pattern for converting CamelCase to snake_case
+
+
 _camel2snake_convert_pattern = pattern = re.compile(r"(?<!^)(?=[A-Z])")
 
 
@@ -20,7 +26,9 @@ class TablePreferences:
     if_not_exist: bool
 
 
-class Table(SupportsCreation):
+class Table(
+    SupportsCreation, SupportsRenderAsIdentifier, SupportBeInSelectFrom
+):
 
     __table_preferences__: TablePreferences
     __table_columns__: typing.Tuple[ColumnData, ...]
@@ -39,8 +47,18 @@ class Table(SupportsCreation):
         return super().__init_subclass__(**kwargs)
 
     @classmethod
+    def as_id(cls) -> Identifier:
+        return Identifier([cls.__table_preferences__.name])
+
+    @classmethod
+    def select(cls, *values: SupportsBeExpression) -> Select:
+        return SupportBeInSelectFrom.select(
+            typing.cast(SupportBeInSelectFrom, cls), *values
+        )
+
+    @classmethod
     def render_for_creation(cls, payload: BuildingPayload) -> None:
-        payload.buffer << PGToken.CREATE_TABLE
+        payload.buffer << PGToken.TABLE
         if cls.__table_preferences__.if_not_exist:
             payload.buffer << PGToken.WHITESPACE
             payload.buffer << PGToken.IF_NOT_EXIST
@@ -50,14 +68,19 @@ class Table(SupportsCreation):
         payload.buffer << cls.__table_preferences__.name
         payload.buffer << PGToken.LEFT_PARENTHESIS
 
-        columns_count = len(cls.__table_columns__)
-        for ind, column in enumerate(cls.__table_columns__):
+        cls.__table_columns__[0].render_for_table_creation(payload)
+        for column in cls.__table_columns__[1:]:
+            payload.buffer << PGToken.COMMA
             column.render_for_table_creation(payload)
-            # != Last column
-            if columns_count - 1 != ind:
-                payload.buffer << PGToken.COMMA
-
         payload.buffer << PGToken.RIGHT_PARENTHESIS
+
+    @classmethod
+    def render_for_from_clause(cls, payload: BuildingPayload) -> None:
+        cls.as_id().render(payload)
+
+    @classmethod
+    def create(cls) -> Create:
+        return SupportsCreation.create(typing.cast(SupportsCreation, cls))
 
     @classmethod
     def _parse_columns(cls) -> typing.Generator[ColumnData, None, None]:

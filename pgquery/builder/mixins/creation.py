@@ -1,6 +1,7 @@
 import abc
 
 from pgquery.builder.actor import BuildingPayload
+from pgquery.builder.clauses.creation import Create
 from pgquery.builder.tokens import PGToken
 
 
@@ -9,6 +10,5 @@ class SupportsCreation(abc.ABC):
     def render_for_creation(self, payload: BuildingPayload):
         pass
 
-    def render(self, payload: BuildingPayload) -> None:
-        payload.buffer << PGToken.CREATE
-        self.render_for_creation(payload)
+    def create(self) -> Create:
+        return Create(creatable=self)

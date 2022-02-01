@@ -1,31 +1,59 @@
+from __future__ import annotations
+
+import abc
 import dataclasses
 import typing
 
+from pgquery.builder.actor import BuildingPayload
+from pgquery.builder.clauses.identifier import Identifier
+from pgquery.builder.clauses.literal import Literal
+from pgquery.builder.clauses.op import BinaryOp, EqMixin
+from pgquery.builder.mixins.expression import SupportsBeExpression
+from pgquery.builder.mixins.identifier import SupportsRenderAsIdentifier
+from pgquery.builder.tokens import PGToken
+
+if typing.TYPE_CHECKING:
+    from pgquery.builder.clauses.table import Table
+
+
+@dataclasses.dataclass
+class References:
+    table: typing.Type[Table]
+    field: BaseColumn
+
+    def render(self, payload: BuildingPayload) -> None:
+        payload.buffer << PGToken.REFERENCES
+        payload.buffer << PGToken.WHITESPACE
+        self.table.as_id().render(payload)
+        payload.buffer << PGToken.WHITESPACE
+        payload.buffer << PGToken.LEFT_PARENTHESIS
+        self.field.as_id(short=True).render(payload)
+        payload.buffer << PGToken.RIGHT_PARENTHESIS
+
 
 @dataclasses.dataclass(eq=False)
-class BaseColumn(abc.ABC):
+class BaseColumn(SupportsRenderAsIdentifier, SupportsBeExpression, abc.ABC):
     pk: bool = False
     unique: bool = False
     nullable: bool = False
-    default: typing.Optional[StaticLiteral] = None  # TODO: DynamicLiteral
-    references: typing.Optional[str] = None
+    default: typing.Optional[Literal] = None  # TOOD: DynamicLiteral
+    references: typing.Optional[References] = None
 
     # Set later from Table
     column_data: typing.Optional[ColumnData] = None
 
-    def render(self, payload: BuildingPayload) -> None:
-        payload.buffer << double_quoted(
-            self.column_data.table.__table_preferences__.name
-        )
-        payload.buffer << PGToken.DOT
-        payload.buffer << double_quoted(self.column_data.name)
+    def render_as_expression(self, payload: BuildingPayload):
+        self.as_id().render(payload)
+
+    def as_id(self, short: bool = False) -> Identifier:
+        chain = [self.column_data.name]
+        if not short:
+            chain.insert(0, self.column_data.table.__table_preferences__.name)
+        return Identifier(chain)
 
     @abc.abstractmethod
-    def render_column_type(self, payload: BuildingPayload):
+    def render_column_type(self, payload: BuildingPayload) -> None:
         pass
-
-    def __eq__(self: Renderable, other: Renderable) -> BinaryOp:
-        return EqOpMixin.__eq__(self, other)
 
 
 @dataclasses.dataclass
@@ -35,8 +63,9 @@ class ColumnData:
     table: typing.Type[Table]
 
     def render_for_table_creation(self, payload: BuildingPayload) -> None:
-        payload.buffer << double_quoted(self.name)
+        self.schema.as_id(short=True).render(payload)
         payload.buffer << PGToken.WHITESPACE
+
         # Render column type
         self.schema.render_column_type(payload)
 
@@ -45,7 +74,7 @@ class ColumnData:
             payload.buffer << PGToken.WHITESPACE
             payload.buffer << PGToken.DEFAULT
             payload.buffer << PGToken.WHITESPACE
-            self.schema.default.render(payload)
+            self.schema.default.render_literal(payload)
 
         # Primary key
         if self.schema.pk:
@@ -54,35 +83,34 @@ class ColumnData:
 
         # References
         if self.schema.references:
-            table, column = self.schema.references.split(".")
             payload.buffer << PGToken.WHITESPACE
-            payload.buffer << PGToken.REFERENCES
-            payload.buffer << PGToken.WHITESPACE,
-            payload.buffer << double_quoted(table),
-            payload.buffer << PGToken.WHITESPACE,
-            payload.buffer << PGToken.LEFT_PARENTHESIS,
-            payload.buffer << double_quoted(column)
-            payload.buffer << PGToken.RIGHT_PARENTHESIS
+            self.schema.references.render(payload)
 
         # TODO: cascade, not null
 
 
 @dataclasses.dataclass(eq=False)
-class Integer(BaseColumn[int]):
+class Integer(BaseColumn, EqMixin):
+    def __eq__(self, other: SupportsBeExpression) -> BinaryOp:
+        return self._eq_impl(other)
+
     def render_column_type(self, payload: BuildingPayload) -> None:
-        payload.buffer << "INTEGER"
+        payload.buffer << PGToken.INTEGER
 
 
 @dataclasses.dataclass(eq=False)
-class Serial(BaseColumn[int]):
+class Serial(BaseColumn, EqMixin):
+    def __eq__(self, other: SupportsBeExpression) -> BinaryOp:
+        return self._eq_impl(other)
+
     def render_column_type(self, payload: BuildingPayload) -> None:
-        payload.buffer << "SERIAL"
+        payload.buffer << PGToken.SERIAL
 
 
 @dataclasses.dataclass(eq=False)
-class Text(BaseColumn[str]):
+class Text(BaseColumn):
     def render_column_type(self, payload: BuildingPayload) -> None:
-        payload.buffer << "TEXT"
+        payload.buffer << PGToken.TEXT
 
 
 @dataclasses.dataclass(eq=False)
@@ -91,6 +119,9 @@ class _VarcharMixin:
 
 
 @dataclasses.dataclass(eq=False)
-class Varchar(BaseColumn[str], _VarcharMixin):
+class Varchar(BaseColumn, _VarcharMixin):
     def render_column_type(self, payload: BuildingPayload) -> None:
-        payload.buffer << f"VARCHAR ({self.limit})"
+        payload.buffer << PGToken.VARCHAR
+        payload.buffer << PGToken.LEFT_PARENTHESIS
+        payload.buffer << repr(self.limit)
+        payload.buffer << PGToken.RIGHT_PARENTHESIS

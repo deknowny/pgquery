@@ -5,10 +5,9 @@ import functools
 import typing
 
 from pgquery.builder.buffer import BaseSQLBuffer, JoinSQlBuffer
-from pgquery.builder.mixins.statement import SupportsStatement
 
 if typing.TYPE_CHECKING:
-    from pgquery.builder.clause import Renderable
+    from pgquery.builder.mixins.statement import SupportsStatement
 
 
 @dataclasses.dataclass
