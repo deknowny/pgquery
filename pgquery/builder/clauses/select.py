@@ -12,7 +12,7 @@ from pgquery.builder.tokens import PGToken
 
 
 @dataclasses.dataclass
-class SupportBeInSelectFrom(abc.ABC):
+class SupportsBeInSelectFrom(abc.ABC):
     @abc.abstractmethod
     def render_for_from_clause(self, payload: BuildingPayload) -> None:
         pass
@@ -28,7 +28,7 @@ class _SelectNonDefault:
 
 @dataclasses.dataclass
 class Select(SupportsStatement, WhereMixin, _SelectNonDefault):
-    sources: typing.Sequence[SupportBeInSelectFrom] = dataclasses.field(
+    sources: typing.Sequence[SupportsBeInSelectFrom] = dataclasses.field(
         default_factory=tuple
     )
 

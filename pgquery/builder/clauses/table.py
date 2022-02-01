@@ -8,7 +8,7 @@ from pgquery.builder.actor import BuildingPayload
 from pgquery.builder.clauses.column import BaseColumn, ColumnData
 from pgquery.builder.clauses.creation import Create
 from pgquery.builder.clauses.identifier import Identifier
-from pgquery.builder.clauses.select import Select, SupportBeInSelectFrom
+from pgquery.builder.clauses.select import Select, SupportsBeInSelectFrom
 from pgquery.builder.mixins.creation import SupportsCreation
 from pgquery.builder.mixins.expression import SupportsBeExpression
 from pgquery.builder.mixins.identifier import SupportsRenderAsIdentifier
@@ -27,7 +27,7 @@ class TablePreferences:
 
 
 class Table(
-    SupportsCreation, SupportsRenderAsIdentifier, SupportBeInSelectFrom
+    SupportsCreation, SupportsRenderAsIdentifier, SupportsBeInSelectFrom
 ):
 
     __table_preferences__: TablePreferences
@@ -52,8 +52,8 @@ class Table(
 
     @classmethod
     def select(cls, *values: SupportsBeExpression) -> Select:
-        return SupportBeInSelectFrom.select(
-            typing.cast(SupportBeInSelectFrom, cls), *values
+        return SupportsBeInSelectFrom.select(
+            typing.cast(SupportsBeInSelectFrom, cls), *values
         )
 
     @classmethod
