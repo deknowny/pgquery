@@ -15,8 +15,6 @@ from pgquery.builder.mixins.identifier import SupportsRenderAsIdentifier
 from pgquery.builder.tokens import PGToken
 
 # Pattern for converting CamelCase to snake_case
-
-
 _camel2snake_convert_pattern = pattern = re.compile(r"(?<!^)(?=[A-Z])")
 
 
@@ -45,6 +43,14 @@ class Table(
         )
         cls.__table_columns__ = tuple(cls._parse_columns())
         return super().__init_subclass__(**kwargs)
+
+    @classmethod
+    def render_for_from_clause_with_joins(
+        cls, payload: BuildingPayload
+    ) -> None:
+        SupportsBeInSelectFrom.render_for_from_clause_with_joins(
+            typing.cast(SupportsBeInSelectFrom, cls), payload
+        )
 
     @classmethod
     def as_id(cls) -> Identifier:

@@ -15,7 +15,7 @@ class Article(pgquery.Table, title="article"):
 
 
 actor = pgquery.BuildingActor()
-query = Article.select(
+query = Article().join_on(Person, Article.author_id == Person.id).select(
     Article.id, Article.content
 ).where(
     pgquery.Or(
