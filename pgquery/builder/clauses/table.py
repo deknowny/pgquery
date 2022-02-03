@@ -5,10 +5,17 @@ import re
 import typing
 
 from pgquery.builder.actor import BuildingPayload
+from pgquery.builder.clauses.alias import TableAlias
 from pgquery.builder.clauses.column import BaseColumn, ColumnData
 from pgquery.builder.clauses.creation import Create
 from pgquery.builder.clauses.identifier import Identifier
-from pgquery.builder.clauses.select import Select, SupportsBeInSelectFrom
+from pgquery.builder.clauses.joins import (
+    BaseJoin,
+    JoinsMixin,
+    SupportsBeInSelectFrom,
+    SupportsJoinType,
+)
+from pgquery.builder.clauses.select import Select
 from pgquery.builder.mixins.creation import SupportsCreation
 from pgquery.builder.mixins.expression import SupportsBeExpression
 from pgquery.builder.mixins.identifier import SupportsRenderAsIdentifier
@@ -44,17 +51,35 @@ class Table(
         cls.__table_columns__ = tuple(cls._parse_columns())
         return super().__init_subclass__(**kwargs)
 
+    def __class_getitem__(cls, alias_name: str) -> TableAlias:
+        return TableAlias(alias=alias_name, source=cls)
+
     @classmethod
-    def render_for_from_clause_with_joins(
-        cls, payload: BuildingPayload
-    ) -> None:
-        SupportsBeInSelectFrom.render_for_from_clause_with_joins(
-            typing.cast(SupportsBeInSelectFrom, cls), payload
-        )
+    def join_on(
+        cls: SupportsBeInSelectFrom,
+        entity: SupportsJoinType,
+        condition: SupportsBeExpression,
+    ) -> BaseJoin:
+        return JoinsMixin.join_on(cls, entity, condition)
+
+    @classmethod
+    def join_using(
+        cls: SupportsBeInSelectFrom,
+        entity: SupportsJoinType,
+        condition: Identifier,
+    ) -> BaseJoin:
+        return JoinsMixin.join_using(cls, entity, condition)
+
+    @classmethod
+    def natural_join(
+        cls: SupportsBeInSelectFrom,
+        entity: SupportsJoinType,
+    ) -> BaseJoin:
+        return JoinsMixin.natural_join(cls, entity)
 
     @classmethod
     def as_id(cls) -> Identifier:
-        return Identifier([cls.__table_preferences__.name])
+        return Identifier(cls.__table_preferences__.name)
 
     @classmethod
     def select(cls, *values: SupportsBeExpression) -> Select:
@@ -93,7 +118,10 @@ class Table(
         for class_var_name, class_var_value in vars(cls).items():
             if isinstance(class_var_value, BaseColumn):
                 full_column_data = ColumnData(
-                    name=class_var_name, schema=class_var_value, table=cls
+                    name=class_var_name,
+                    schema=class_var_value,
+                    table=cls,
+                    table_name=cls.__table_preferences__.name,
                 )
                 class_var_value.column_data = full_column_data
                 yield full_column_data

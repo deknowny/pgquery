@@ -1,4 +1,7 @@
+import time
+
 import pgquery
+import sqlparse
 
 
 class Person(pgquery.Table):
@@ -14,15 +17,26 @@ class Article(pgquery.Table, title="article"):
     )
 
 
+foo = Article.id
 actor = pgquery.BuildingActor()
-query = Article().join_on(Person, Article.author_id == Person.id).select(
-    Article.id, Article.content
-).where(
-    pgquery.Or(
-        pgquery.Func("sqrt", Article.id) == pgquery.Literal.new(123),
-        Article.author_id == pgquery.Literal.new(456)
+start_time = time.time()
+query = (
+    Article["a"]
+    .join_on(Person["p"], Article["a"].author_id == Person["p"].id)
+    .join_on(Person["p1"], Article["a"].author_id == Person["p"].id)
+    .select(Article["a"].id, Article["a"].content)
+    .where(
+        pgquery.Or(
+            pgquery.Func("sqrt", Article["a"].id) == pgquery.Literal.new(123),
+            Article["a"].author_id == pgquery.Literal.new(456),
+            pgquery.And(
+                pgquery.Literal.new(100) == pgquery.Literal.new(200),
+                pgquery.Literal.new(300) == pgquery.Literal.new(400)
+            )
+        )
     )
 )
+
 # query = Person.select({
 #     "id": Person.id,
 #     "info": {
@@ -35,5 +49,18 @@ query = Article().join_on(Person, Article.author_id == Person.id).select(
 #
 # })
 
-print(actor.build(query).sql)
+result_sql = actor.build(query).sql
+end_time = time.time()
+print(
+    pgquery.colorize_sql(
+        sqlparse.format(
+            actor.build(query).sql,
+            reindent=True,
+            keyword_case="upper",
+            use_space_around_operators=True,
+            # indent_width=6
+        )
+    ),
+    "Taken:", end_time - start_time
+)
 

@@ -6,32 +6,21 @@ import typing
 
 from pgquery.builder.actor import BuildingPayload
 from pgquery.builder.clauses.identifier import Identifier
+from pgquery.builder.clauses.select import Select
 from pgquery.builder.mixins.expression import SupportsBeExpression
 from pgquery.builder.tokens import PGToken
 
-if typing.TYPE_CHECKING:
-    from pgquery.builder.clauses.select import SupportsBeInSelectFrom
-
-
-SourceType = typing.TypeVar("SourceType", bound="SupportsBeInSelectFrom")
+SupportsJoinType = typing.Union[
+    typing.Type["SupportsBeInSelectFrom"], "SupportsBeInSelectFrom"
+]
 
 
 @dataclasses.dataclass
-class BaseJoin:
-    join_name: typing.ClassVar[str]
-
+class _BaseJoinNonDefaultInit:
     left: SupportsBeInSelectFrom
     right: SupportsBeInSelectFrom
     concat: BaseJoinConcatenation
-
-    def render_for_from_clause(self, payload: BuildingPayload) -> None:
-        self.left.render_for_from_clause(payload)
-        payload.buffer << PGToken.WHITESPACE
-        self.concat.render_before_join_concat(payload)
-        payload.buffer << self.join_name
-        payload.buffer << PGToken.WHITESPACE
-        self.right.render_for_from_clause(payload)
-        self.concat.render_after_join_concat(payload)
+    join_name: str
 
 
 @dataclasses.dataclass
@@ -71,45 +60,60 @@ class JoinConcatenationThroughNatural(BaseJoinConcatenation):
 
 @dataclasses.dataclass
 class JoinsMixin:
-    join_chain: typing.Optional[BaseJoin] = None
-
     def join_on(
-        self: SourceType,
-        entity: typing.Union[
-            typing.Type[SupportsBeInSelectFrom], SupportsBeInSelectFrom
-        ],
+        self: SupportsBeInSelectFrom,
+        entity: SupportsJoinType,
         condition: SupportsBeExpression,
-    ) -> SourceType:
-        self.join_chain = BaseJoin(
-            left=self.join_chain or self,
+    ) -> BaseJoin:
+        return BaseJoin(
+            left=self,
             right=entity,
             concat=JoinConcatenationThroughOn(condition),
+            join_name=PGToken.JOIN,
         )
-        return self
 
     def join_using(
-        self: SourceType,
-        entity: typing.Union[
-            typing.Type[SupportsBeInSelectFrom], SupportsBeInSelectFrom
-        ],
-        field: SupportsBeExpression,
-    ) -> SourceType:
-        self.join_chain = BaseJoin(
-            left=self.join_chain or self,
+        self: SupportsBeInSelectFrom,
+        entity: SupportsJoinType,
+        field: Identifier,
+    ) -> BaseJoin:
+        return BaseJoin(
+            left=self,
             right=entity,
             concat=JoinConcatenationThroughUsing(field),
+            join_name=PGToken.JOIN,
         )
-        return self
 
     def natural_join(
-        self: SourceType,
-        entity: typing.Union[
-            typing.Type[SupportsBeInSelectFrom], SupportsBeInSelectFrom
-        ],
-    ) -> SourceType:
-        self.join_chain = BaseJoin(
-            left=self.join_chain or self,
+        self: SupportsBeInSelectFrom,
+        entity: SupportsJoinType,
+    ) -> BaseJoin:
+        return BaseJoin(
+            left=self,
             right=entity,
             concat=JoinConcatenationThroughNatural(),
+            join_name=PGToken.JOIN,
         )
-        return self
+
+
+@dataclasses.dataclass
+class SupportsBeInSelectFrom(JoinsMixin, abc.ABC):
+    @abc.abstractmethod
+    def render_for_from_clause(self, payload: BuildingPayload) -> None:
+        pass
+
+    def select(self, *values: SupportsBeExpression) -> Select:
+        return Select(values=values, sources=[self])
+
+
+@dataclasses.dataclass
+class BaseJoin(SupportsBeInSelectFrom, _BaseJoinNonDefaultInit):
+    def render_for_from_clause(self, payload: BuildingPayload) -> None:
+        self.left.render_for_from_clause(payload)
+        payload.buffer << PGToken.WHITESPACE
+        self.concat.render_before_join_concat(payload)
+        payload.buffer << self.join_name
+        payload.buffer << PGToken.WHITESPACE
+        self.right.render_for_from_clause(payload)
+        payload.buffer << PGToken.WHITESPACE
+        self.concat.render_after_join_concat(payload)

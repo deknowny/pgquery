@@ -13,7 +13,7 @@ from pgquery.builder.mixins.identifier import SupportsRenderAsIdentifier
 from pgquery.builder.tokens import PGToken
 
 if typing.TYPE_CHECKING:
-    from pgquery.builder.clauses.table import Table
+    from pgquery.builder.clauses.table import Table, TablePreferences
 
 
 @dataclasses.dataclass
@@ -48,8 +48,8 @@ class BaseColumn(SupportsRenderAsIdentifier, SupportsBeExpression, abc.ABC):
     def as_id(self, short: bool = False) -> Identifier:
         chain = [self.column_data.name]
         if not short:
-            chain.insert(0, self.column_data.table.__table_preferences__.name)
-        return Identifier(chain)
+            chain.insert(0, self.column_data.table_name)
+        return Identifier(*chain)
 
     @abc.abstractmethod
     def render_column_type(self, payload: BuildingPayload) -> None:
@@ -61,6 +61,8 @@ class ColumnData:
     name: str
     schema: BaseColumn
     table: typing.Type[Table]
+    # Individually because could be mocked
+    table_name: str
 
     def render_for_table_creation(self, payload: BuildingPayload) -> None:
         self.schema.as_id(short=True).render(payload)
